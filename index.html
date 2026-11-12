@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kiwispaper</title>
+    <link rel="icon" type="image/png" href="files/images/kiwi.png">
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: Arial, sans-serif;
+        }
+
+        body {
+            background-color: #62f418; /* Görseldeki açık/parlak yeşil arka plan */
+            padding: 30px;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Sol üstteki ikon kutusu */
+        .logo-box {
+            width: 160px;
+            height: 90px;
+            background-color: #7c7c7c;
+            border: 1px solid #555555;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 30px;
+            padding: 8px;
+        }
+
+        .logo-box img {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+        }
+
+        /* Dosyaların listeleneceği ana gri kutu */
+        .list-box {
+            width: 100%;
+            flex: 1;
+            min-height: 360px;
+            background-color: #7c7c7c;
+            border: 1px solid #555555;
+            padding: 25px;
+            color: #ffffff;
+        }
+
+        .status-text {
+            font-size: 15px;
+            color: #ffffff;
+        }
+
+        .file-list {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .file-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background-color: #6b6b6b;
+            border: 1px solid #555555;
+            padding: 10px 15px;
+        }
+
+        .file-name {
+            color: #ffffff;
+            font-size: 15px;
+            word-break: break-all;
+        }
+
+        .item-actions {
+            display: flex;
+            gap: 8px;
+            flex-shrink: 0;
+        }
+
+        .btn {
+            background-color: #555555;
+            color: #ffffff;
+            border: 1px solid #333333;
+            padding: 6px 12px;
+            font-size: 13px;
+            text-decoration: none;
+            cursor: pointer;
+        }
+
+        .btn:hover {
+            background-color: #444444;
+        }
+
+        /* Alt kısımdaki indirme düğmesi alanı */
+        .bottom-area {
+            margin-top: 20px;
+        }
+
+        .btn-download-all {
+            display: inline-block;
+            background-color: #7c7c7c;
+            color: #ffffff;
+            border: 1px solid #555555;
+            padding: 10px 20px;
+            font-size: 14px;
+            text-decoration: none;
+            cursor: pointer;
+        }
+
+        .btn-download-all:hover {
+            background-color: #6b6b6b;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Sol üst ikon kutusu -->
+    <div class="logo-box">
+        <img src="files/images/kiwi.png" alt="files/images/kiwi.png">
+    </div>
+
+    <!-- Ortadaki geniş liste kutusu -->
+    <div class="list-box">
+        <div id="status" class="status-text">DOSYALAR YÜKLENİYOR...</div>
+        <ul id="fileList" class="file-list"></ul>
+    </div>
+
+    <!-- Alttaki indirme düğmesi -->
+    <div class="bottom-area">
+        <a href="https://github.com/kerkeremx-afk/kiwispaper/archive/refs/heads/main.zip" class="btn-download-all">İndir</a>
+    </div>
+
+    <script>
+        const apiUrl = 'https://api.github.com/repos/kerkeremx-afk/kiwispaper/contents/files/newspapers';
+        const fileListEl = document.getElementById('fileList');
+        const statusEl = document.getElementById('status');
+
+        async function downloadSingleFile(url, filename, btn) {
+            const oldText = btn.textContent;
+            btn.textContent = '...';
+            try {
+                const res = await fetch(url);
+                const blob = await res.blob();
+                const blobUrl = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = blobUrl;
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+                URL.revokeObjectURL(blobUrl);
+            } catch {
+                window.open(url, '_blank');
+            } finally {
+                btn.textContent = oldText;
+            }
+        }
+
+        async function loadFiles() {
+            try {
+                const response = await fetch(apiUrl);
+                if (!response.ok) throw new Error('Dosyalar alınamadı (' + response.status + ')');
+
+                const data = await response.json();
+                const files = data.filter(item => item.type === 'file');
+
+                if (files.length === 0) {
+                    statusEl.textContent = 'KLASÖRDE DOSYA YOK';
+                    return;
+                }
+
+                statusEl.style.display = 'none';
+
+                files.forEach(file => {
+                    const li = document.createElement('li');
+                    li.className = 'file-item';
+
+                    const nameSpan = document.createElement('span');
+                    nameSpan.className = 'file-name';
+                    nameSpan.textContent = file.name;
+
+                    const actions = document.createElement('div');
+                    actions.className = 'item-actions';
+
+                    const viewLink = document.createElement('a');
+                    viewLink.href = file.html_url;
+                    viewLink.target = '_blank';
+                    viewLink.className = 'btn';
+                    viewLink.textContent = 'Aç';
+
+                    const dlBtn = document.createElement('button');
+                    dlBtn.className = 'btn';
+                    dlBtn.textContent = 'İndir';
+                    dlBtn.onclick = () => downloadSingleFile(file.download_url, file.name, dlBtn);
+
+                    actions.appendChild(viewLink);
+                    actions.appendChild(dlBtn);
+
+                    li.appendChild(nameSpan);
+                    li.appendChild(actions);
+                    fileListEl.appendChild(li);
+                });
+            } catch (err) {
+                statusEl.textContent = 'HATA: ' + err.message;
+            }
+        }
+
+        loadFiles();
+    </script>
+</body>
+</html>
